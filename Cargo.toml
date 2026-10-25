@@ -1,0 +1,13 @@
+[package]
+name = "darkproject-core"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Device protocol and profiles for Dark Project Studio"
+license = "GPL-2.0-or-later"
+
+[dependencies]
+hidapi = { version = "2.6.7", features = ["macos-shared-device"] }
+nusb = "0.2.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

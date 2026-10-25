@@ -1,0 +1,31 @@
+{
+  "name": "dark-project-studio",
+  "version": "0.12.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
+    "build": "npm run presets && tsc --noEmit && vite build",
+    "test": "node --experimental-strip-types --test ui/src/*.test.ts",
+    "tauri": "tauri",
+    "desktop": "tauri dev",
+    "presets": "node --experimental-strip-types scripts/build-presets.ts",
+    "predev": "npm run presets"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.10.0",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.0.0"
+  }
+}

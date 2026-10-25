@@ -1,0 +1,61 @@
+import { staticPresets } from './static.ts';
+import { firmwarePresets } from './firmware.ts';
+import { buildLighting, defaultSettings, palettes } from './builder.ts';
+import type { BuilderSettings } from './builder.ts';
+import type { Profile } from './model.ts';
+
+type Preset = {id:string; name:string; description:string; palette:string} & Partial<BuilderSettings>;
+const collection: Preset[] = [
+  {id:'cyberpunk',name:'Cyberpunk',description:'Бирюзово-розовая волна слева направо',palette:'cyberpunk',pattern:'wave'},
+  {id:'sunset',name:'Sunset',description:'Мягкое дыхание оранжево-фиолетового градиента',palette:'sunset',pattern:'steady',effect:'breathing',duration:3},
+  {id:'aurora-drift',name:'Полярное сияние',description:'Широкие зелёно-голубые шторки с мягким дыханием',palette:'aurora',pattern:'curtain',effect:'breathing',width:5,duration:3},
+  {id:'neon-rain',name:'Неоновый дождь',description:'Бирюзовые и розовые капли бегут вниз',palette:'cyberpunk',pattern:'rain',width:2,duration:1,distribution:'bands'},
+  {id:'solar-flare',name:'Солнечная вспышка',description:'Огненная спираль из красного в золото',palette:'fire',pattern:'spiral',width:4,duration:1,distribution:'radial'},
+  {id:'deep-orbit',name:'Глубокая орбита',description:'Голубое пятно медленно обходит синий градиент',palette:'ocean',pattern:'orbit',width:3,duration:3,distribution:'radial'},
+  {id:'stardust',name:'Звёздная пыль',description:'Редкие холодные огни на тёмной клавиатуре',palette:'ice',pattern:'stars',width:2,duration:3},
+  {id:'matrix-rain',name:'Матрица',description:'Узкие зелёные потоки с жёлтыми бликами',palette:'forest',pattern:'rain',width:1,duration:1,colors:[[0,80,20],[0,255,70],[190,255,70]],distribution:'vertical'},
+  {id:'redline',name:'Красная линия',description:'Красно-белый луч сканирует клавиатуру туда и обратно',palette:'mono',pattern:'scanner',width:2,duration:1,colors:[[255,10,25],[255,255,255],[255,10,25]]},
+  {id:'black-hole',name:'Чёрная дыра',description:'Фиолетовые кольца стягиваются к центру',palette:'violet',pattern:'ripple',width:3,duration:2,reverse:true,distribution:'radial'},
+  {id:'tangerine-comet',name:'Мандариновая комета',description:'Оранжевый хвост обходит края клавиатуры',palette:'fire',pattern:'comet',width:3,duration:1},
+  {id:'glacier',name:'Ледник',description:'Широкая ледяная волна с плавным дыханием',palette:'ice',pattern:'wave',width:6,duration:3,effect:'breathing'},
+  {id:'tokyo-crossing',name:'Токийский перекрёсток',description:'Пересекающиеся розовый и голубой лучи',palette:'cyberpunk',pattern:'cross',width:3,duration:1,colors:[[255,20,115],[90,30,255],[0,235,255]],distribution:'bands'},
+  {id:'sakura-fall',name:'Сакура',description:'Розово-белые лепестки падают сверху вниз',palette:'candy',pattern:'rain',width:2,duration:3,colors:[[255,55,140],[255,190,220],[255,245,255]],distribution:'vertical'},
+  {id:'inferno',name:'Инферно',description:'Красно-оранжевая полоса проходит наискосок',palette:'ember',pattern:'diagonal',width:5,duration:1,distribution:'vertical'},
+  {id:'vapor-spiral',name:'Vaporwave',description:'Розово-голубая спираль вращается в обратную сторону',palette:'candy',pattern:'spiral',width:3,duration:2,reverse:true},
+  {id:'sonar',name:'Сонар',description:'Зелёный луч вращается вокруг центра',palette:'forest',pattern:'radar',width:3,duration:2,distribution:'radial'},
+  {id:'electric-snake',name:'Электрозмейка',description:'Синий след идёт по рядам клавиатуры',palette:'ocean',pattern:'snake',width:4,duration:1,colors:[[0,60,255],[0,235,255],[180,255,255]]},
+  {id:'molten-gold',name:'Жидкое золото',description:'Золотой свет постепенно заполняет клавиатуру',palette:'fire',pattern:'sweep',duration:2,colors:[[255,70,0],[255,170,20],[255,240,130]]},
+  {id:'supernova',name:'Сверхновая',description:'Яркое оранжево-розовое кольцо расширяется от центра',palette:'sunset',pattern:'ripple',width:5,duration:1,distribution:'radial'},
+  {id:'afterhours',name:'После полуночи',description:'Широкая фиолетовая волна движется справа налево',palette:'violet',pattern:'wave',width:5,duration:3,reverse:true,brightness:70},
+  {id:'monochrome-pulse',name:'Белый импульс',description:'Двойная белая вспышка и длинная пауза',palette:'mono',pattern:'heartbeat',duration:1},
+  {id:'amber-terminal',name:'Янтарный терминал',description:'Тонкий янтарный луч проходит в обе стороны',palette:'ember',pattern:'scanner',width:1,duration:2,colors:[[255,100,0],[255,210,70]],brightness:85},
+  {id:'deep-current',name:'Глубинное течение',description:'Бирюзовая диагональ движется через синий градиент',palette:'ocean',pattern:'reverse-diagonal',width:4,duration:3},
+  {id:'mint-orbit',name:'Мятная орбита',description:'Крупное мятно-белое пятно движется по кругу',palette:'aurora',pattern:'orbit',width:5,duration:2,colors:[[0,255,150],[210,255,240]],distribution:'vertical'},
+  {id:'copper-sparks',name:'Медные искры',description:'Тёплые искры вспыхивают по всей клавиатуре',palette:'ember',pattern:'sparkle',width:2,duration:1,distribution:'bands'},
+  {id:'laser-duet',name:'Лазерный дуэт',description:'Красная и голубая полосы встречаются в центре',palette:'cyberpunk',pattern:'curtain',width:2,duration:1,colors:[[255,15,40],[120,25,255],[0,225,255]],distribution:'bands'},
+  {id:'prism-rain',name:'Призматический дождь',description:'Капли с радужным переливом по всей клавиатуре',palette:'mono',pattern:'rain',width:3,duration:2,effect:'rainbow'},
+  {id:'retro-racer',name:'Ретро-гонщик',description:'Широкий оранжево-бирюзовый след бежит по рядам',palette:'retro',pattern:'snake',width:6,duration:1,distribution:'bands'},
+  {id:'moonfall',name:'Лунопад',description:'Редкие лавандовые огни с мягким дыханием',palette:'violet',pattern:'stars',width:3,duration:4,effect:'breathing',colors:[[95,90,220],[190,200,255],[255,255,255]],brightness:75},
+  {id:'ruby-eclipse',name:'Рубиновое затмение',description:'Рубиновый свет исчезает справа налево',palette:'ember',pattern:'wipe',duration:2,colors:[[120,0,25],[255,15,65],[255,105,160]]},
+  {id:'plasma-core',name:'Плазменное ядро',description:'Плотная розово-фиолетовая спираль',palette:'violet',pattern:'spiral',width:6,duration:1,colors:[[255,40,170],[135,25,255],[30,120,255]],distribution:'radial'},
+  {id:'arctic-scan',name:'Арктический сканер',description:'Светлая полоса плавно проходит сверху вниз',palette:'ice',pattern:'vertical',width:2,duration:3,distribution:'vertical'},
+  {id:'aurora-return',name:'Полярные кольца',description:'Медленные бирюзово-фиолетовые кольца от центра',palette:'aurora',pattern:'ripple',width:4,duration:4,distribution:'radial'},
+  {id:'motion-v2-bipolar',name:'Биполярная волна',description:'Две яркие полосы идут навстречу друг другу',palette:'cyberpunk',pattern:'double-wave',width:3,duration:2},
+  {id:'motion-v2-lattice',name:'Кристальная решётка',description:'Голубые ромбовые кольца расходятся от центра',palette:'ice',pattern:'diamond-ring',width:3,duration:2,distribution:'radial'},
+  {id:'motion-v2-galaxy',name:'Двойная галактика',description:'Две фиолетовые спирали вращаются вокруг центра',palette:'violet',pattern:'twin-spiral',width:3,duration:2,distribution:'radial'},
+  {id:'motion-v2-cascade',name:'Бирюзовый каскад',description:'Изогнутый поток света движется сверху вниз',palette:'ocean',pattern:'waterfall',width:3,duration:2,distribution:'vertical'},
+  {id:'motion-v2-wheel',name:'Плазменное колесо',description:'Четыре огненных луча вращаются по кругу',palette:'fire',pattern:'pinwheel',width:2,duration:1,distribution:'radial'},
+  {id:'motion-v2-collapse',name:'Схлопывание',description:'Розовые полосы сходятся от краёв к центру',palette:'candy',pattern:'converge',width:3,duration:2},
+  {id:'motion-v2-braid',name:'Неоновая коса',description:'Бирюзовые и розовые волны переплетаются',palette:'cyberpunk',pattern:'braid',width:2,duration:2,distribution:'bands'},
+  {id:'motion-v2-zipper',name:'Световая молния',description:'Золотые и бирюзовые столбцы текут в разные стороны',palette:'retro',pattern:'zipper',width:3,duration:2,distribution:'bands'},
+
+];
+
+export function presetCatalog(): Profile[] {
+  return [...collection.map(({id,name,description,palette,...settings}) => {
+    const colors = palettes.find(p => p.id === palette)?.colors;
+    if(!colors) throw new Error(`Неизвестная палитра: ${palette}`);
+    const base: Profile = {version:1,id,name,description,brightness:100,keys:[],frames:[],bindings:[],macros:[]};
+    return buildLighting(base,{...defaultSettings(),colors,...settings});
+  }),...staticPresets(),...firmwarePresets()];
+}

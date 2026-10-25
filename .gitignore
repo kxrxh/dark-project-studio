@@ -1,0 +1,14 @@
+/target/
+.DS_Store
+*.dpcbk
+/node_modules/
+/ui/dist/
+/src-tauri/target/
+/src-tauri/gen/
+/.impeccable/
+/DESIGN.md
+/PRODUCT.md
+/research/
+.env
+.env.*
+*.log
