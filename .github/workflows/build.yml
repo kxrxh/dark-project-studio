@@ -71,7 +71,7 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
         run: |
           npx playwright install chromium
-          node --experimental-strip-types --test ui/src/app/preview-playback.test.ts
+          node --experimental-strip-types --test ui/src/app/preview-playback.test.ts ui/src/app/startup-reading.test.ts
       - name: Check Rust formatting
         run: |
           cargo fmt --check
@@ -86,6 +86,11 @@ jobs:
           cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
       - name: Build installers
         run: npm run tauri -- build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} -- --locked
+      - name: Smoke test Windows USB reader process
+        if: runner.os == 'Windows'
+        run: |
+          ./src-tauri/target/x86_64-pc-windows-msvc/release/darkproject-studio.exe --hardware-read-worker probe "$RUNNER_TEMP/usb-probe.json"
+          node -e 'const response = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); if (!response.Ok || typeof response.Ok.connected !== "boolean") process.exit(1)' "$RUNNER_TEMP/usb-probe.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dark-project-studio-${{ matrix.target }}

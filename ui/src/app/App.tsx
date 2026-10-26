@@ -74,9 +74,11 @@ export default function App() {
     onboardProfiles.find((entry) => entry.slot === slot)?.data ?? null;
   const scanIdentity = useRef<string | null>(null),
     scanning = useRef(false),
+    failedIdentity = useRef<string | null>(null),
     lastScanAttempt = useRef(0);
   const [tab, setTab] = useState("library");
   const [busy, setBusy] = useState(""),
+    [reading, setReading] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [saved, setSaved] = useState(""),
@@ -111,6 +113,7 @@ export default function App() {
   const latest = useRef(profiles),
     queue = useRef(Promise.resolve()),
     ready = useRef(false),
+    writing = useRef(false),
     busyRef = useRef("");
   latest.current = profiles;
   busyRef.current = busy;
@@ -130,14 +133,12 @@ export default function App() {
           ? await invoke<{
               profiles: Profile[];
               templates: Profile[];
-              device: Device;
             }>("bootstrap")
           : {
               profiles: (await fetch("/presets.json").then((r) =>
                 r.json(),
               )) as Profile[],
               templates: [],
-              device: offline,
             };
         if (cancelled) return;
         const originals = result.templates.length
@@ -148,7 +149,6 @@ export default function App() {
         setProfiles(users);
         setActive(originals[0]?.id ?? users[0]?.id ?? "");
         setTab("library");
-        setDevice(result.device);
         ready.current = true;
         setLoaded(true);
       } catch (e) {
@@ -172,8 +172,10 @@ export default function App() {
       )
         return;
       scanning.current = true;
+      let detectedIdentity: string | null = null;
       try {
         const presence = await invoke<Device>("probe_device");
+        detectedIdentity = presence.identity ?? null;
         if (stopped || busyRef.current) return;
         const previousIdentity = scanIdentity.current;
         setDestination((previous) =>
@@ -181,30 +183,34 @@ export default function App() {
         );
         if (!presence.connected || !presence.supported) {
           scanIdentity.current = null;
+          failedIdentity.current = null;
           lastScanAttempt.current = 0;
           setDevice(presence);
           setOnboardProfiles([]);
           setDestination(null);
           return;
         }
+        // A failed scan waits for explicit retry or a different keyboard.
+        if (failedIdentity.current === detectedIdentity) return;
         if (needsProfileScan(scanIdentity.current, presence)) {
           setOnboardProfiles([]);
           if (Date.now() - lastScanAttempt.current < 10000) return;
           lastScanAttempt.current = Date.now();
-          busyRef.current = "Чтение профилей клавиатуры";
-          setBusy(busyRef.current);
+          setReading(true);
           try {
             const result = await invoke<HardwareScan>("scan_hardware");
             if (stopped) return;
             setDevice(result.device);
             setOnboardProfiles(result.profiles);
+            failedIdentity.current = result.device.supported
+              ? null
+              : detectedIdentity;
             scanIdentity.current =
               result.device.supported && result.profiles.some((p) => p.data)
                 ? (result.device.identity ?? null)
                 : null;
           } finally {
-            busyRef.current = "";
-            if (!stopped) setBusy("");
+            if (!stopped) setReading(false);
           }
         } else {
           const next = await invoke<Device>("refresh_device");
@@ -218,6 +224,8 @@ export default function App() {
         }
       } catch (e) {
         if (!stopped) {
+          failedIdentity.current = detectedIdentity;
+          setError(`Не удалось прочитать клавиатуру: ${e}`);
           scanIdentity.current = null;
           setOnboardProfiles([]);
           setDestination(null);
@@ -264,7 +272,7 @@ export default function App() {
     if (!native) return;
     const subscription = getCurrentWindow().onCloseRequested(async (event) => {
       event.preventDefault();
-      if (busyRef.current) {
+      if (writing.current) {
         setError("Дождитесь завершения операции с клавиатурой");
         return;
       }
@@ -279,9 +287,20 @@ export default function App() {
       void subscription.then((stop) => stop());
     };
   }, []);
-  async function run(label: string, operation: () => Promise<void>) {
+  async function run(
+    label: string,
+    operation: () => Promise<void>,
+    protectsKeyboard = false,
+  ) {
     if (busyRef.current) return;
+    if (scanning.current) {
+      setError(
+        "Сейчас идёт чтение клавиатуры. Дождитесь результата и повторите действие.",
+      );
+      return;
+    }
     busyRef.current = label;
+    writing.current = protectsKeyboard;
     setBusy(label);
     setError("");
     setNotice("");
@@ -290,6 +309,7 @@ export default function App() {
     } catch (e) {
       setError(String(e));
     } finally {
+      writing.current = false;
       busyRef.current = "";
       setBusy("");
     }
@@ -307,6 +327,9 @@ export default function App() {
   async function refresh() {
     await run("Чтение профилей клавиатуры", async () => {
       const result = await invoke<HardwareScan>("scan_hardware");
+      failedIdentity.current = result.device.supported
+        ? null
+        : (result.device.identity ?? null);
       setDevice(result.device);
       setOnboardProfiles(result.profiles);
       setDestination(null);
@@ -358,30 +381,38 @@ export default function App() {
     });
   }
   async function activateHardware(target: number) {
-    await run("Переключение профиля", async () => {
-      await invoke("select_slot", { slot: target });
-      setDevice(await invoke<Device>("refresh_device"));
-    });
+    await run(
+      "Переключение профиля",
+      async () => {
+        await invoke("select_slot", { slot: target });
+        setDevice(await invoke<Device>("refresh_device"));
+      },
+      true,
+    );
   }
   async function publish(target = slot) {
     if (!current || target === null) return;
-    await run("Запись и проверка профиля", async () => {
-      await persist(latest.current);
-      const result = await invoke<Hardware>("apply_profile", {
-        slot: target,
-        profile: current,
-      });
-      setOnboardProfiles((entries) =>
-        entries.map((entry) =>
-          entry.slot === target
-            ? { ...entry, data: result, error: null }
-            : entry,
-        ),
-      );
-      setDestination(target);
-      setDevice((previous) => ({ ...previous, active: target }));
-      setNotice(`«${current.name}» записан в слот ${target} и активирован.`);
-    });
+    await run(
+      "Запись и проверка профиля",
+      async () => {
+        await persist(latest.current);
+        const result = await invoke<Hardware>("apply_profile", {
+          slot: target,
+          profile: current,
+        });
+        setOnboardProfiles((entries) =>
+          entries.map((entry) =>
+            entry.slot === target
+              ? { ...entry, data: result, error: null }
+              : entry,
+          ),
+        );
+        setDestination(target);
+        setDevice((previous) => ({ ...previous, active: target }));
+        setNotice(`«${current.name}» записан в слот ${target} и активирован.`);
+      },
+      true,
+    );
   }
   async function exportFile() {
     if (!current) return;
@@ -550,6 +581,13 @@ export default function App() {
             <div className="message">
               <span className="spinner" />
               {busy}…
+            </div>
+          )}
+          {reading && (
+            <div className="message" role="status">
+              <span className="spinner" />
+              Чтение профилей клавиатуры… Библиотека доступна, окно можно
+              закрыть.
             </div>
           )}
           {error && (
@@ -732,14 +770,18 @@ export default function App() {
                           )
                         ) {
                           setBackups(null);
-                          await run("Восстановление слота", async () => {
-                            await invoke("restore_backup", { name });
-                            setOnboardProfiles([]);
-                            scanIdentity.current = null;
-                            setNotice(
-                              "Данные слота восстановлены и проверены. Активируйте нужный слот.",
-                            );
-                          });
+                          await run(
+                            "Восстановление слота",
+                            async () => {
+                              await invoke("restore_backup", { name });
+                              setOnboardProfiles([]);
+                              scanIdentity.current = null;
+                              setNotice(
+                                "Данные слота восстановлены и проверены. Активируйте нужный слот.",
+                              );
+                            },
+                            true,
+                          );
                         }
                       })()
                     }

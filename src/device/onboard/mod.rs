@@ -92,7 +92,7 @@ pub fn select(profile: u8) -> DeviceResult<()> {
     Connection::open()?.select(profile)
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HardwareProfile {
     pub base: Vec<u8>,

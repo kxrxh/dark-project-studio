@@ -3,6 +3,8 @@
 mod commands;
 mod device;
 mod files;
+#[cfg(target_os = "windows")]
+mod read_worker;
 mod state;
 
 use state::Studio;
@@ -10,6 +12,10 @@ use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
 fn main() {
+    #[cfg(target_os = "windows")]
+    if read_worker::dispatch() {
+        return;
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -17,6 +23,7 @@ fn main() {
             app.manage(Studio {
                 directory,
                 lock: Arc::new(Mutex::new(())),
+                library_lock: Arc::new(Mutex::new(())),
             });
             Ok(())
         })

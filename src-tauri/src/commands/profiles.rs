@@ -1,7 +1,6 @@
 use crate::{
-    device::{DeviceState, device_state},
     files::read_limited,
-    state::{Reply, Studio, work},
+    state::{Reply, Studio, file_work as work},
 };
 use darkproject_core::profile::{model::StudioProfile, storage};
 use serde::Serialize;
@@ -12,7 +11,6 @@ use tauri::State;
 pub(crate) struct Bootstrap {
     profiles: Vec<StudioProfile>,
     templates: Vec<StudioProfile>,
-    device: DeviceState,
 }
 #[tauri::command]
 pub(crate) async fn bootstrap(state: State<'_, Studio>) -> Reply<Bootstrap> {
@@ -20,7 +18,6 @@ pub(crate) async fn bootstrap(state: State<'_, Studio>) -> Reply<Bootstrap> {
         Ok(Bootstrap {
             profiles: storage::load_with_catalog(&directory.join("library.json"))?,
             templates: storage::defaults()?,
-            device: device_state(),
         })
     })
     .await

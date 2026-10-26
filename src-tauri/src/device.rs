@@ -1,9 +1,9 @@
 use crate::state::{Reply, Studio, work};
 use darkproject_core::device::{onboard, usb};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::State;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct DeviceState {
     connected: bool,
@@ -30,7 +30,7 @@ impl DeviceState {
         }
     }
 }
-fn device_presence() -> DeviceState {
+pub(crate) fn device_presence() -> DeviceState {
     match usb::devices() {
         Ok(devices) if devices.len() == 1 => {
             let revision = devices[0].device_version();
@@ -107,13 +107,13 @@ pub(crate) fn open_input_monitoring_settings() -> Reply<()> {
     #[cfg(not(target_os = "macos"))]
     Err("Настройка доступна только в macOS".into())
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct HardwareSlot {
     slot: u8,
     data: Option<onboard::HardwareProfile>,
     error: Option<String>,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub(crate) struct HardwareScan {
     device: DeviceState,
     profiles: Vec<HardwareSlot>,
@@ -138,31 +138,62 @@ fn collect_hardware_profiles(
 }
 #[tauri::command]
 pub(crate) async fn probe_device(state: State<'_, Studio>) -> Reply<DeviceState> {
-    work(&state, |_| Ok(device_presence())).await
+    work(&state, |_| {
+        #[cfg(target_os = "windows")]
+        {
+            crate::read_worker::read("probe", std::time::Duration::from_secs(5))
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            Ok(device_presence())
+        }
+    })
+    .await
 }
 #[tauri::command]
 pub(crate) async fn scan_hardware(state: State<'_, Studio>) -> Reply<HardwareScan> {
     work(&state, |_| {
-        let device = device_state();
-        let profiles = if device.supported {
-            collect_hardware_profiles(|slot| {
-                onboard::read_profile_summary(slot).map_err(|e| e.to_string())
-            })
-        } else {
-            vec![]
-        };
-        let after = device_presence();
-        if after.identity != device.identity {
-            return Err("Клавиатура отключена во время чтения".into());
+        #[cfg(target_os = "windows")]
+        {
+            crate::read_worker::read("scan", std::time::Duration::from_secs(45))
         }
-        Ok(HardwareScan { device, profiles })
+        #[cfg(not(target_os = "windows"))]
+        {
+            scan()
+        }
     })
     .await
 }
 
+pub(crate) fn scan() -> Reply<HardwareScan> {
+    let device = device_state();
+    let profiles = if device.supported {
+        collect_hardware_profiles(|slot| {
+            onboard::read_profile_summary(slot).map_err(|e| e.to_string())
+        })
+    } else {
+        vec![]
+    };
+    let after = device_presence();
+    if after.identity != device.identity {
+        return Err("Клавиатура отключена во время чтения".into());
+    }
+    Ok(HardwareScan { device, profiles })
+}
+
 #[tauri::command]
 pub(crate) async fn refresh_device(state: State<'_, Studio>) -> Reply<DeviceState> {
-    work(&state, |_| Ok(device_state())).await
+    work(&state, |_| {
+        #[cfg(target_os = "windows")]
+        {
+            crate::read_worker::read("refresh", std::time::Duration::from_secs(5))
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            Ok(device_state())
+        }
+    })
+    .await
 }
 #[cfg(test)]
 mod tests {
