@@ -196,15 +196,21 @@ export default function App() {
           setOnboardProfiles([]);
           if (Date.now() - lastScanAttempt.current < 10000) return;
           lastScanAttempt.current = Date.now();
+          setDevice(presence);
           setReading(true);
           try {
             const result = await invoke<HardwareScan>("scan_hardware");
             if (stopped) return;
             setDevice(result.device);
             setOnboardProfiles(result.profiles);
-            failedIdentity.current = result.device.supported
-              ? null
-              : detectedIdentity;
+            const readable =
+              result.device.supported && result.profiles.some((p) => p.data);
+            failedIdentity.current = readable ? null : detectedIdentity;
+            if (result.device.supported && !readable) {
+              setError(
+                "Не удалось прочитать профили клавиатуры. Переподключите её и нажмите «Проверить подключение».",
+              );
+            }
             scanIdentity.current =
               result.device.supported && result.profiles.some((p) => p.data)
                 ? (result.device.identity ?? null)
@@ -327,9 +333,10 @@ export default function App() {
   async function refresh() {
     await run("Чтение профилей клавиатуры", async () => {
       const result = await invoke<HardwareScan>("scan_hardware");
-      failedIdentity.current = result.device.supported
-        ? null
-        : (result.device.identity ?? null);
+      failedIdentity.current =
+        result.device.supported && result.profiles.some((p) => p.data)
+          ? null
+          : (result.device.identity ?? null);
       setDevice(result.device);
       setOnboardProfiles(result.profiles);
       setDestination(null);
