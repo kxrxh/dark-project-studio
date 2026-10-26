@@ -5,6 +5,7 @@ import { effectNames, frameAt, hex, rgb } from "../../model/profile";
 import type { Color, Effect, Profile } from "../../model/types";
 import type { BuilderSettings, Distribution, PatternId } from "./builder";
 import { buildLighting, defaultSettings, palettes, patterns } from "./builder";
+import { usePreviewPlayback } from "./usePreviewPlayback";
 interface Props {
   profile: Profile;
   creating?: boolean;
@@ -20,8 +21,8 @@ export default function ProfileBuilder({
   const [settings, setSettings] = useState<BuilderSettings>(defaultSettings),
     [palette, setPalette] = useState("cyberpunk"),
     [name, setName] = useState("Моя анимация"),
-    [playing, setPlaying] = useState(true),
     [time, setTime] = useState(0);
+  const [playing, setPlaying] = usePreviewPlayback();
   const compiled = useMemo(
     () => buildLighting(profile, settings),
     [profile, settings],
@@ -35,10 +36,6 @@ export default function ProfileBuilder({
   };
   useEffect(() => {
     if (!playing) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setPlaying(false);
-      return;
-    }
     const start = performance.now();
     const timer = setInterval(() => setTime(performance.now() - start), 60);
     return () => clearInterval(timer);

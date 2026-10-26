@@ -12,6 +12,7 @@ import type { Profile } from "../../model/types";
 import type { ProfileFilter } from "./library";
 import { isStaticProfile, visibleProfiles } from "./library";
 import { previewColors } from "./preview";
+import { usePreviewPlayback } from "./usePreviewPlayback";
 
 export default memo(function ProfileLibrary({
   profiles,
@@ -30,7 +31,7 @@ export default memo(function ProfileLibrary({
 }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ProfileFilter>("all");
-  const [playing, setPlaying] = useState(true);
+  const [playing, setPlaying] = usePreviewPlayback();
   const previewTime = useRef(450);
   const shown = useMemo(
     () => visibleProfiles(profiles, search, filter, presetIds),
@@ -49,7 +50,6 @@ export default memo(function ProfileLibrary({
     const canvases = Array.from(
       root.querySelectorAll<HTMLCanvasElement>("canvas"),
     );
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const started = performance.now();
     const phase = previewTime.current;
     let animation = 0,
@@ -94,12 +94,8 @@ export default memo(function ProfileLibrary({
     }
     function wake() {
       cancelAnimationFrame(animation);
-      if (playing && !document.hidden && !motion.matches && animated.size)
+      if (playing && !document.hidden && animated.size)
         animation = requestAnimationFrame(tick);
-    }
-    function motionChanged() {
-      visible.forEach((canvas) => paint(canvas, previewTime.current));
-      wake();
     }
     const observer = new IntersectionObserver(
       (entries) => {
@@ -135,13 +131,11 @@ export default memo(function ProfileLibrary({
       sizes.observe(canvas);
     });
     document.addEventListener("visibilitychange", wake);
-    motion.addEventListener("change", motionChanged);
     return () => {
       cancelAnimationFrame(animation);
       observer.disconnect();
       sizes.disconnect();
       document.removeEventListener("visibilitychange", wake);
-      motion.removeEventListener("change", motionChanged);
       canvases.forEach((canvas) => {
         canvas.width = canvas.height = 0;
       });

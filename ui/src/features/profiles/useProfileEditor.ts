@@ -4,6 +4,7 @@ import type { GradientDirection } from "../../model/profile";
 import { editKeys, frameAt, gradient, hex, rgb } from "../../model/profile";
 import type { Layer, Profile } from "../../model/types";
 import { isStaticProfile } from "./library";
+import { usePreviewPlayback } from "./usePreviewPlayback";
 
 export function useProfileEditor({
   current,
@@ -24,13 +25,13 @@ export function useProfileEditor({
   const [selected, setSelected] = useState<number[]>([35, 51, 52, 53]),
     [layer, setLayer] = useState<Layer>("base");
   const [frame, setFrame] = useState(0),
-    [playing, setPlaying] = useState(true),
     [painting, setPainting] = useState(false),
     [time, setTime] = useState(0),
     [gradientFrom, setGradientFrom] = useState("#00ffff"),
     [gradientDirection, setGradientDirection] =
       useState<GradientDirection>("right"),
     [gradientTo, setGradientTo] = useState("#ff5194");
+  const [playing, setPlaying] = usePreviewPlayback();
   const [undo, setUndo] = useState<Profile[]>([]),
     [redo, setRedo] = useState<Profile[]>([]);
   useEffect(() => {
@@ -42,10 +43,6 @@ export function useProfileEditor({
       !["overview", "lighting", "frames"].includes(tab)
     )
       return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setPlaying(false);
-      return;
-    }
     const start = performance.now();
     const timer = setInterval(() => setTime(performance.now() - start), 60);
     return () => clearInterval(timer);
