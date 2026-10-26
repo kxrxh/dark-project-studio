@@ -19,4 +19,4 @@ npm run tauri -- build   # native installer
 
 Russian interface. Unsigned distribution builds; macOS needs Input Monitoring permission. Windows/Linux USB access needs compatible drivers and hardware verification.
 
-[GPL-2.0-or-later](LICENSE). RGB encoding and key offsets adapted from the OpenRGB driver by Chris M (DrNo), 08 Apr 2022; attribution is preserved in [src/protocol.rs](src/protocol.rs).
+[GPL-2.0-or-later](LICENSE). RGB encoding and key offsets adapted from the OpenRGB driver by Chris M (DrNo), 08 Apr 2022; attribution is preserved in [src/device/protocol.rs](src/device/protocol.rs).
