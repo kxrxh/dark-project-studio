@@ -17,6 +17,6 @@ npm run desktop          # development
 npm run tauri -- build   # native installer
 ```
 
-Russian interface. Unsigned distribution builds; macOS needs Input Monitoring permission. Windows/Linux USB access needs compatible drivers and hardware verification.
+Russian interface. Unsigned distribution builds; macOS needs Input Monitoring permission. Windows uses the standard HID driver for the vendor command and response collections; no WinUSB/Zadig driver replacement is needed. If a driver was replaced previously, restore the standard HID driver first. Linux USB access needs suitable device permissions. Hardware verification is still required on each platform.
 
 [GPL-2.0-or-later](LICENSE). RGB encoding and key offsets adapted from the OpenRGB driver by Chris M (DrNo), 08 Apr 2022; attribution is preserved in [src/device/protocol.rs](src/device/protocol.rs).

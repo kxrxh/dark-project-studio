@@ -12,12 +12,16 @@ pub fn devices() -> Result<Vec<DeviceInfo>, Box<dyn Error>> {
         .collect())
 }
 
-pub fn open_keyboard() -> Result<Device, Box<dyn Error>> {
+pub fn keyboard_info() -> Result<DeviceInfo, Box<dyn Error>> {
     match devices()?.as_slice() {
-        [info] => Ok(info.open().wait()?),
+        [info] => Ok(info.clone()),
         [] => Err("No KD3B rev.2 (195d:2061) found.".into()),
         _ => Err("Multiple KD3B keyboards found; connect just one before writing.".into()),
     }
+}
+
+pub fn open_keyboard() -> Result<Device, Box<dyn Error>> {
+    Ok(keyboard_info()?.open().wait()?)
 }
 
 pub fn lighting_interface() -> Result<nusb::Interface, Box<dyn Error>> {
